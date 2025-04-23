@@ -31,11 +31,23 @@ class Module:
 
     def train(self) -> None:
         """Set the mode of this module and all descendent modules to `train`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 0.4.
+        # raise NotImplementedError("Need to implement for Task 0.4")
+        self.training = True
+        m: Sequence[Module] = list(self.__dict__["_modules"].values())
+        for mod in m:
+            mod.training = True
+            m.extend(mod.modules())
 
     def eval(self) -> None:
         """Set the mode of this module and all descendent modules to `eval`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 0.4.
+        # raise NotImplementedError("Need to implement for Task 0.4")
+        self.training = False
+        m: Sequence[Module] = list(self.__dict__["_modules"].values())
+        for mod in m:
+            mod.training = False
+            m.extend(mod.modules())
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """Collect all the parameters of this module and its descendents.
@@ -45,11 +57,35 @@ class Module:
             The name and `Parameter` of each ancestor parameter.
 
         """
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 0.4.
+        # raise NotImplementedError("Need to implement for Task 0.4")
+        m: Sequence[Tuple[str, Parameter]] = list(self.__dict__["_modules"].items())
+        ans: Sequence[Tuple[str, Parameter]] = list(
+            self.__dict__["_parameters"].items()
+        )
+
+        for curname, mod in m:
+            tmpmods = list(mod.__dict__["_modules"].items())
+            tmpparams = list(mod.__dict__["_parameters"].items())
+
+            new_tmpmods = [(f"{curname}.{name}", module) for name, module in tmpmods]
+            new_tmpparams = [(f"{curname}.{name}", param) for name, param in tmpparams]
+
+            ans.extend(new_tmpparams)
+            m.extend(new_tmpmods)
+        return ans
 
     def parameters(self) -> Sequence[Parameter]:
         """Enumerate over all the parameters of this module and its descendents."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 0.4.
+        # raise NotImplementedError("Need to implement for Task 0.4")
+        m: Sequence[Module] = list(self.__dict__["_modules"].values())
+        ans: Sequence[Parameter] = []
+        ans.extend(self.__dict__["_parameters"].values())
+        for mod in m:
+            ans.extend(mod.__dict__["_parameters"].values())
+            m.extend(mod.modules())
+        return ans
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """Manually add a parameter. Useful helper for scalar parameters.

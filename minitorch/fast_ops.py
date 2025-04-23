@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, Any
+from typing import TYPE_CHECKING, TypeVar, Sequence, Any
 
 import numpy as np
+import numpy.typing as npt
 from numba import prange
 from numba import njit as _njit
 
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
 # If you get an error, read the docs for NUMBA as to what is allowed
 # in these functions.
 Fn = TypeVar("Fn")
+tilenum:int = 20
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
@@ -36,7 +38,6 @@ def njit(fn: Fn, **kwargs: Any) -> Fn:
 to_index = njit(to_index)
 index_to_position = njit(index_to_position)
 broadcast_index = njit(broadcast_index)
-
 
 class FastOps(TensorOps):
     @staticmethod
@@ -169,7 +170,37 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # raise NotImplementedError("Need to implement for Task 3.1")
+        blocksize:int = int(len(out)//tilenum)
+        if((len(out_strides) == len(in_strides)) and (out_strides == in_strides).all() and (out_shape == in_shape).all()):
+            for i in prange(tilenum):
+                curaddr = i*blocksize
+                for j in range(blocksize):
+                    out[curaddr+j] = fn(in_storage[curaddr+j])
+                    # print(len(out),curaddr+j)
+            for i in range(len(out)%tilenum):
+                out[tilenum*blocksize+i] = fn(in_storage[tilenum*blocksize+i])
+                # print(len(out),tilenum*blocksize+i)
+            # print(len(out),tilenum,blocksize)
+        else:
+            for j in prange(tilenum):
+                for i in range(blocksize):
+                    curaddr = j*blocksize
+                    out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+                    to_index(curaddr+i, out_shape, out_idx)
+                    in_idx:npt.NDArray[np.int32] = np.array([0] * len(in_shape))
+                    broadcast_index(out_idx, out_shape, in_shape, in_idx)
+                    in_pos = index_to_position(in_idx, in_strides)
+                    out[index_to_position(out_idx,out_strides)] = fn(in_storage[in_pos])
+            for j in range(len(out)%tilenum):
+                out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+                to_index(tilenum*blocksize+j, out_shape, out_idx)
+                in_idx:npt.NDArray[np.int32] = np.array([0] * len(in_shape))
+                broadcast_index(out_idx, out_shape, in_shape, in_idx)
+                in_pos = index_to_position(in_idx, in_strides)
+                out[index_to_position(out_idx,out_strides)] = fn(in_storage[in_pos])
+
+        # print(in_storage,in_strides,out,out_strides)
 
     return njit(_map, parallel=True)  # type: ignore
 
@@ -209,7 +240,44 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # raise NotImplementedError("Need to implement for Task 3.1")
+        blocksize:int = int(len(out)//tilenum)
+        if((len(out_strides) == len(a_strides)) and (len(out_strides) == len(b_strides)) and (out_strides == a_strides).all() and (out_strides == b_strides).all() and (out_shape == a_shape).all() and (out_shape == b_shape).all()):
+            for i in prange(tilenum):
+                curaddr = i*blocksize
+                for j in range(blocksize):
+                    out[curaddr+j] = fn(a_storage[curaddr+j],b_storage[curaddr+j])
+            for i in range(len(out)%tilenum):
+                out[tilenum*blocksize+i] = fn(a_storage[tilenum*blocksize+i],b_storage[tilenum*blocksize+i])
+        else:
+            for j in prange(tilenum):
+                for i in range(blocksize):
+                    out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+                    to_index(blocksize*j+i, out_shape, out_idx)
+                    a_idx:npt.NDArray[np.int32] = np.array([0] * len(a_shape))
+                    broadcast_index(out_idx, out_shape, a_shape, a_idx)
+                    a_pos = index_to_position(a_idx, a_strides)
+
+                    b_idx:npt.NDArray[np.int32] = np.array([0] * len(b_shape))
+                    broadcast_index(out_idx, out_shape, b_shape, b_idx)
+                    b_pos = index_to_position(b_idx, b_strides)
+
+                    out[index_to_position(out_idx,out_strides)] = fn(a_storage[a_pos], b_storage[b_pos])
+            
+            for j in range(len(out)%tilenum):
+                out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+                to_index(tilenum*blocksize+j, out_shape, out_idx)
+                a_idx:npt.NDArray[np.int32] = np.array([0] * len(a_shape))
+                broadcast_index(out_idx, out_shape, a_shape, a_idx)
+                a_pos = index_to_position(a_idx, a_strides)
+
+                b_idx:npt.NDArray[np.int32] = np.array([0] * len(b_shape))
+                broadcast_index(out_idx, out_shape, b_shape, b_idx)
+                b_pos = index_to_position(b_idx, b_strides)
+
+                out[index_to_position(out_idx,out_strides)] = fn(a_storage[a_pos], b_storage[b_pos])
+
+        # print(a_storage,a_strides,b_storage,b_strides,out,out_strides)
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -245,7 +313,35 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # raise NotImplementedError("Need to implement for Task 3.1")
+        blocksize:int = int(len(out)//tilenum)
+        for j in prange(tilenum):
+            for i in range(blocksize):
+                out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+                to_index(j*blocksize+i, out_shape, out_idx)
+
+                a_idx:npt.NDArray[np.int32] = np.array([0] * len(a_shape))
+                broadcast_index(out_idx, out_shape, a_shape, a_idx)
+
+                for k in range(a_shape[reduce_dim]):
+                    a_idx[reduce_dim] = k
+                    a_pos = index_to_position(a_idx, a_strides)
+                    out[index_to_position(out_idx,out_strides)] += a_storage[a_pos]
+
+        for j in range(len(out)%tilenum):
+            out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+            to_index(tilenum*blocksize+j, out_shape, out_idx)
+
+            a_idx:npt.NDArray[np.int32] = np.array([0] * len(a_shape))
+            broadcast_index(out_idx, out_shape, a_shape, a_idx)
+
+            for k in range(a_shape[reduce_dim]):
+                a_idx[reduce_dim] = k
+                a_pos = index_to_position(a_idx, a_strides)
+                out[index_to_position(out_idx,out_strides)] += a_storage[a_pos]
+
+        # print(a_storage,a_strides,out,out_strides)
+
 
     return njit(_reduce, parallel=True)  # type: ignore
 
@@ -297,7 +393,41 @@ def _tensor_matrix_multiply(
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
 
     # TODO: Implement for Task 3.2.
-    raise NotImplementedError("Need to implement for Task 3.2")
+    # raise NotImplementedError("Need to implement for Task 3.2")
+    assert a_shape[-1] == b_shape[-2]
+    # tmpshapea = a_shape.tolist()
+    # tmpshapeb = b_shape.tolist()
+    # tmpshapea[-1]=1
+    # tmpshapeb[-2]=1
+    # tmp_out_shape = list(shape_broadcast(tuple(tmpshapea),tuple(tmpshapeb)))
+    # out_shape = np.array(tmp_out_shape)
+    for i in prange(len(out)):
+        tmpi = i + 0
+        out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
+        to_index(tmpi, out_shape, out_idx)
+        out_pos = index_to_position(out_idx, out_strides)
+        for j in range(a_shape[-1]):
+            tmpj = j + 0
+            
+            tmp_a_idx:npt.NDArray[np.int32] = out_idx.copy()
+            tmp_a_idx[-1]=tmpj
+            a_idx:npt.NDArray[np.int32] = np.array([0] * len(a_shape))
+            broadcast_index(tmp_a_idx, out_shape, a_shape, a_idx)
+            # a_idx[-2] = out_idx[-2]
+            tmp_b_idx:npt.NDArray[np.int32] = out_idx.copy()
+            tmp_b_idx[-2]=tmpj
+            b_idx:npt.NDArray[np.int32] = np.array([0] * len(b_shape))
+            broadcast_index(tmp_b_idx, out_shape, b_shape, b_idx)
+            # b_idx[-1] = out_idx[-1]
+
+
+            # a_idx[-1]=tmpj
+            # b_idx[-2]=tmpj
+            a_pos = index_to_position(a_idx, a_strides)
+            b_pos = index_to_position(b_idx, b_strides)
+            out[out_pos] += a_storage[a_pos]*b_storage[b_pos]
+            # print(a_idx,b_idx)
+    # print(a_storage,a_shape,b_storage,b_shape,out,out_shape)
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
