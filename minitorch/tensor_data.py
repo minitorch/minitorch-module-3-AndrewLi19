@@ -46,7 +46,9 @@ def index_to_position(index: Index, strides: Strides) -> int:
 
     # TODO: Implement for Task 2.1.
     # raise NotImplementedError("Need to implement for Task 2.1")
-    ans = sum([index[i] * strides[i] for i in range(len(index))])
+    ans = 0
+    for i in range(len(index)):
+      ans += index[i] * strides[i]
     # print(index,strides,ans)
     return ans
 
