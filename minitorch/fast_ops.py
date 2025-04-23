@@ -326,7 +326,7 @@ def tensor_reduce(
                 for k in range(a_shape[reduce_dim]):
                     a_idx[reduce_dim] = k
                     a_pos = index_to_position(a_idx, a_strides)
-                    out[index_to_position(out_idx,out_strides)] += a_storage[a_pos]
+                    out[index_to_position(out_idx,out_strides)] = fn(out[index_to_position(out_idx,out_strides)],a_storage[a_pos])
 
         for j in range(len(out)%tilenum):
             out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))

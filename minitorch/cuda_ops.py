@@ -6,6 +6,9 @@ from typing import Callable, Optional, TypeVar, Any
 import numba
 from numba import cuda
 from numba.cuda import jit as _jit
+from numba import config
+config.CUDA_ENABLE_PYNVJITLINK = 1
+
 from .tensor import Tensor
 from .tensor_data import (
     MAX_DIMS,
@@ -323,21 +326,22 @@ def tensor_reduce(
     ) -> None:
         BLOCK_DIM = 1024
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
-        # out_index = cuda.local.array(MAX_DIMS, numba.int32)
+        out_index = cuda.local.array(MAX_DIMS, numba.int32)
+        a_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x
         pos = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
         # raise NotImplementedError("Need to implement for Task 3.3")
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-        if(out_pos<out_size):
-            out_idx = out_strides.copy()
-            to_index(out_pos,out_shape,out_idx)
-            a_idx = a_shape.copy()
-            broadcast_index(out_idx,out_shape,a_shape,a_idx)
+        if(i<out_size):
+            to_index(out_pos,out_shape,out_index)
+            new_out_pos = index_to_position(out_index,out_strides)
+            out[new_out_pos] = reduce_value
             if(pos<a_shape[reduce_dim]):
-                a_idx[reduce_dim] = pos
-                a_pos = index_to_position(a_idx,a_strides)
+                a_index = out_index
+                a_index[reduce_dim] = pos
+                a_pos = index_to_position(a_index,a_strides)
                 cache[pos] = a_storage[a_pos]
                 cuda.syncthreads()
                 
@@ -352,7 +356,7 @@ def tensor_reduce(
                     res = stride%2
                     stride //= 2
                 if(pos==0):
-                    out[index_to_position(out_idx,out_strides)]=cache[pos]
+                    out[new_out_pos]=fn(out[new_out_pos],cache[pos])
 
     return jit(_reduce)  # type: ignore
 
