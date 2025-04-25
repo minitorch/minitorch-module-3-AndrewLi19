@@ -182,7 +182,7 @@ def tensor_map(
             to_index(i,out_shape,out_index)
             broadcast_index(out_index,out_shape,in_shape,in_index)
             out_pos=index_to_position(out_index,out_strides)
-            out[out_pos]=in_storage[index_to_position(in_index,in_strides)]
+            out[out_pos]=fn(in_storage[index_to_position(in_index,in_strides)])
 
     return cuda.jit()(_map)  # type: ignore
 
@@ -272,16 +272,18 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     # raise NotImplementedError("Need to implement for Task 3.3")
     if(i<size):
         cache[pos] = a[i]
-        cuda.syncthreads()
-        stride = BLOCK_DIM//2
-        while(stride>0):
-            if(pos<stride):
-                cache[pos]+=cache[pos+stride]
-            cuda.syncthreads()
-            stride //= 2
-        if(i==0):
-            out[0]=cache[0]
+    else:
+        cache[pos] = 0
+    cuda.syncthreads()
 
+    stride = cuda.blockDim.x//2
+    while(stride>0):
+        if(pos<stride):
+            cache[pos]+=cache[pos+stride]
+        cuda.syncthreads()
+        stride = stride//2
+    if(pos==0):
+        out[cuda.blockIdx.x]=cache[0]
 
 jit_sum_practice = cuda.jit()(_sum_practice)
 
