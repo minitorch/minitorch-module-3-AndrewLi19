@@ -335,8 +335,7 @@ def tensor_reduce(
 
         # TODO: Implement for Task 3.3.
         # raise NotImplementedError("Need to implement for Task 3.3")
-        i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-        if(i<out_size):
+        if(out_pos<out_size):
             to_index(out_pos,out_shape,out_index)
             new_out_pos = index_to_position(out_index,out_strides)
             out[new_out_pos] = reduce_value
@@ -356,7 +355,7 @@ def tensor_reduce(
                     if(pos==0 and res!=0):
                         cache[pos] = fn(cache[pos],cache[pos+stride*2])
                     res = stride%2
-                    stride //= 2
+                    stride = stride//2
                 if(pos==0):
                     out[new_out_pos]=fn(out[new_out_pos],cache[pos])
 
