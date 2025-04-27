@@ -395,12 +395,7 @@ def _tensor_matrix_multiply(
     # TODO: Implement for Task 3.2.
     # raise NotImplementedError("Need to implement for Task 3.2")
     assert a_shape[-1] == b_shape[-2]
-    # tmpshapea = a_shape.tolist()
-    # tmpshapeb = b_shape.tolist()
-    # tmpshapea[-1]=1
-    # tmpshapeb[-2]=1
-    # tmp_out_shape = list(shape_broadcast(tuple(tmpshapea),tuple(tmpshapeb)))
-    # out_shape = np.array(tmp_out_shape)
+
     for i in prange(len(out)):
         tmpi = i + 0
         out_idx:npt.NDArray[np.int32] = np.array([0] * len(out_shape))
@@ -413,16 +408,12 @@ def _tensor_matrix_multiply(
             tmp_a_idx[-1]=tmpj
             a_idx:npt.NDArray[np.int32] = np.array([0] * len(a_shape))
             broadcast_index(tmp_a_idx, out_shape, a_shape, a_idx)
-            # a_idx[-2] = out_idx[-2]
+
             tmp_b_idx:npt.NDArray[np.int32] = out_idx.copy()
             tmp_b_idx[-2]=tmpj
             b_idx:npt.NDArray[np.int32] = np.array([0] * len(b_shape))
             broadcast_index(tmp_b_idx, out_shape, b_shape, b_idx)
-            # b_idx[-1] = out_idx[-1]
 
-
-            # a_idx[-1]=tmpj
-            # b_idx[-2]=tmpj
             a_pos = index_to_position(a_idx, a_strides)
             b_pos = index_to_position(b_idx, b_strides)
             out[out_pos] += a_storage[a_pos]*b_storage[b_pos]
