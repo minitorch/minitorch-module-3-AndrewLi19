@@ -149,7 +149,7 @@ if numba.cuda.is_available():
         out = minitorch.sum_practice(b2)
         assert_close(s, out._storage[0] + out._storage[1])
 
-    @pytest.mark.task3_3
+    @pytest.mark.
     def test_sum_practice3() -> None:
         x = [random.random() for i in range(48)]
         b = minitorch.tensor(x)
@@ -249,7 +249,12 @@ if numba.cuda.is_available():
 
         for i in range(size):
             for j in range(size):
-                assert_close(z[i, j], z2[i, j])
+                try:
+                    assert_close(z[i, j], z2[i, j])
+                except AssertionError as e:
+                    print(x1,y1,z,z2)
+                    assert(0)
+
 
     @pytest.mark.task3_4
     def test_mul_practice5() -> None:
@@ -303,6 +308,25 @@ if numba.cuda.is_available():
                 for j in range(size_b):
                     print(i, j)
                     assert_close(z[b, i, j], z2[b, i, j])
+
+    @pytest.mark.task3_4
+    def test_shape() -> None:
+        batch = 3
+        size_a = 62
+        size_b = 48
+        size_in = 64
+        a = [
+            [[random.random() for i in range(size_in)] for j in range(size_a)]
+            for _ in range(1)
+        ]
+        b = [
+            [[random.random() for i in range(size_b)] for j in range(size_in)]
+            for _ in range(batch)
+        ]
+        a = minitorch.tensor(a, backend=shared["cuda"])
+        b = minitorch.tensor(b, backend=shared["cuda"])
+        z = a@b
+        assert z.shape == (batch, size_a, size_b)
 
 
 @given(data())
